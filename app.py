@@ -1,13 +1,7 @@
-from jbi100_app.main import app
-from jbi100_app.views.menu import make_menu_layout
-from jbi100_app.views.scatterplot import Scatterplot
-
 from dash.dependencies import Input, Output
-
-import plotly.express as px
-from dash import Dash, dcc, html, Input, Output, callback
-import plotly.graph_objs as go
+import plotly.graph_objects as go
 import pandas as pd
+from dash import Dash, dcc, html
 import json
 from PIL import Image
 
@@ -20,11 +14,10 @@ styles = {
     }
 }
 
-df = pd.read_csv("sustainable_energy_nl.csv") 
-
+df = pd.read_csv('sustainable_energy_nl.csv')
+df['BevolkingAanHetEindeVanDePeriode_15'] = df['BevolkingAanHetEindeVanDePeriode_15'].str.replace(',', '.')
 df['BevolkingAanHetEindeVanDePeriode_15'] = pd.to_numeric(df['BevolkingAanHetEindeVanDePeriode_15'], errors='coerce')
-df['BevolkingAanHetEindeVanDePeriode_15'] = df['BevolkingAanHetEindeVanDePeriode_15'].fillna(0)
-
+df.fillna(0, inplace=True)
 coordinates = {
     'ET3002': (560, 48),
     'ET3001': (600, 68),
@@ -75,13 +68,14 @@ map = Image.open('map.png')
 
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
-def create_figure(filtered_df):
+
+def create_figure(filtered_df, topic):
     fig = go.Figure()
 
     # Adding background image (map)
     fig.add_layout_image(
         dict(
-            source= map,
+            source=map,
             xref="x",
             yref="y",
             x=0,
@@ -94,20 +88,43 @@ def create_figure(filtered_df):
         )
     )
 
-    # Adding scatter plot with RegioS regions and population data
+    # Determine the marker information based on the selected topic
+    if topic == 'Population':
+        selected_topic = filtered_df['BevolkingAanHetEindeVanDePeriode_15']
+        size = selected_topic.clip(lower=1)
+        hovertemplate = "<b>%{text}</b><br>Population: %{customdata[1]}<extra></extra>"
+        customdata = filtered_df[['ID_x', 'BevolkingAanHetBeginVanDePeriode_1']]
+        color = 'cornflowerblue'
+        sizeref = selected_topic.max()
+    elif topic == 'Solar Energy':
+        selected_topic = filtered_df['norm_prod_solar_allpower']
+        size = selected_topic.clip(lower=1)
+        hovertemplate = "<b>%{text}</b><br>Solar Energy: %{customdata[1]}<extra></extra>"
+        customdata = filtered_df[['ID_x', 'norm_prod_solar_allpower']]
+        color = '#ffea2d'
+        sizeref = selected_topic.max()
+    elif topic == 'Wind Energy':
+        selected_topic = filtered_df['norm_prod_wind']
+        size = selected_topic.clip(lower=1)
+        hovertemplate = "<b>%{text}</b><br>Wind Energy: %{customdata[1]}<extra></extra>"
+        customdata = filtered_df[['ID_x', 'norm_prod_wind']]
+        color = '#008080'
+        sizeref = selected_topic.max()
+
     fig.add_trace(go.Scatter(
         x=filtered_df['x'],
         y=filtered_df['y'],
         mode='markers+text',
         text=filtered_df['RegioS'],
         textposition="top center",
-        customdata=filtered_df[['ID_x', 'BevolkingAanHetBeginVanDePeriode_1']],
+        customdata=customdata,
         marker=dict(
-            size=(filtered_df['BevolkingAanHetEindeVanDePeriode_15'] / 1).clip(lower=10),  # Adjust the size scaling factor as needed
+            color=color,
+            size=size,  # Adjust the size scaling factor as needed
             sizemode='area',
-            sizeref=2. * max(filtered_df['BevolkingAanHetEindeVanDePeriode_15']) / (40. ** 2),  # Adjust marker size
+            sizeref=sizeref / 30 ** 2,  # Adjust marker size
         ),
-        hovertemplate="<b>%{text}</b><br>Population: %{customdata[1]}<extra></extra>"
+        hovertemplate=hovertemplate
     ))
 
     fig.update_layout(
@@ -128,6 +145,7 @@ def create_figure(filtered_df):
     )
 
     return fig
+
 
 # App layout
 app.layout = html.Div(
@@ -152,7 +170,19 @@ app.layout = html.Div(
                     dcc.Dropdown(
                         id='year-filter',
                         options=[{'label': period, 'value': period} for period in df['Perioden'].unique()],
-                        placeholder="Select a year"
+                        value='2018JJ00'
+                    ),
+                ]),
+                html.Div([
+                    dcc.Dropdown(
+                        id='topic-selection',
+                        options=[
+                            {'label': 'Population', 'value': 'Population'},
+                            {'label': 'Solar Energy', 'value': 'Solar Energy'},
+                            {'label': 'Wind Energy', 'value': 'Wind Energy'}
+                        ],
+                        placeholder="Select a topic",
+                        value='Population'  # Default value
                     ),
                 ]),
                 html.Div([
@@ -196,16 +226,18 @@ app.layout = html.Div(
         )
     ]
 )
-    # Define interactions
+
+
+# Define interactions
 @app.callback(
     Output('basic-interactions', 'figure'),
-    Input('year-filter', 'value'))
-def update_figure(selected_year):
-    if selected_year:
-        filtered_df = df[df['Perioden'] == selected_year]
-    else:
-        filtered_df = df
-    return create_figure(filtered_df)
+    [Input('year-filter', 'value'), Input('topic-selection', 'value')]
+)
+def update_figure(selected_year, selected_topic):
+
+    filtered_df = df[df['Perioden'] == selected_year]
+    return create_figure(filtered_df, selected_topic)
+
 
 @app.callback(
     Output('hover-data', 'children'),
@@ -213,11 +245,13 @@ def update_figure(selected_year):
 def display_hover_data(hoverData):
     return json.dumps(hoverData, indent=2)
 
+
 @app.callback(
     Output('click-data', 'children'),
     Input('basic-interactions', 'clickData'))
 def display_click_data(clickData):
     return json.dumps(clickData, indent=2)
+
 
 @app.callback(
     Output('selected-data', 'children'),
@@ -225,11 +259,13 @@ def display_click_data(clickData):
 def display_selected_data(selectedData):
     return json.dumps(selectedData, indent=2)
 
+
 @app.callback(
     Output('relayout-data', 'children'),
     Input('basic-interactions', 'relayoutData'))
 def display_relayout_data(relayoutData):
     return json.dumps(relayoutData, indent=2)
+
 
 if __name__ == '__main__':
     app.run_server(debug=False)
