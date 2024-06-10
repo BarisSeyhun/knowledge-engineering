@@ -110,6 +110,27 @@ def create_figure(filtered_df, topic):
         customdata = filtered_df[['ID_x', 'norm_prod_wind']]
         color = '#008080'
         sizeref = selected_topic.max()
+    elif topic == 'Fraction (Solar)':
+        selected_topic = filtered_df['FractionSolar']
+        size = selected_topic.clip(lower=0)
+        hovertemplate = "<b>%{text}</b><br>Fraction (Solar): %{customdata[1]}<extra></extra>"
+        customdata = filtered_df[['ID_x', 'FractionSolar']]
+        color = 'coral'
+        sizeref = selected_topic.max()
+    elif topic == 'Fraction (Wind)':
+        selected_topic = filtered_df['FractionWind']
+        size = selected_topic.clip(lower=0)
+        hovertemplate = "<b>%{text}</b><br>Fraction (Wind): %{customdata[1]}<extra></extra>"
+        customdata = filtered_df[['ID_x', 'FractionWind']]
+        color = 'midnightblue'
+        sizeref = selected_topic.max()
+    elif topic == 'Fraction (Total)':
+        selected_topic = filtered_df['FractionTotal']
+        size = selected_topic.clip(lower=0)
+        hovertemplate = "<b>%{text}</b><br>Fraction (Total): %{customdata[1]}<extra></extra>"
+        customdata = filtered_df[['ID_x', 'FractionTotal']]
+        color = 'purple'
+        sizeref = selected_topic.max()
 
     fig.add_trace(go.Scatter(
         x=filtered_df['x'],
@@ -179,7 +200,10 @@ app.layout = html.Div(
                         options=[
                             {'label': 'Population', 'value': 'Population'},
                             {'label': 'Solar Energy', 'value': 'Solar Energy'},
-                            {'label': 'Wind Energy', 'value': 'Wind Energy'}
+                            {'label': 'Wind Energy', 'value': 'Wind Energy'},
+                            {'label': 'Fraction (Solar)', 'value': 'Fraction (Solar)'},
+                            {'label': 'Fraction (Wind)', 'value': 'Fraction (Wind)'},
+                            {'label': 'Fraction (Total)', 'value': 'Fraction (Total)'}
                         ],
                         placeholder="Select a topic",
                         value='Population'  # Default value
