@@ -69,7 +69,7 @@ map = Image.open('map.png')
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
 
-def create_figure(filtered_df, topic):
+def create_figure(filtered_df, topic, fraction_filter):
     fig = go.Figure()
 
     # Adding background image (map)
@@ -112,6 +112,8 @@ def create_figure(filtered_df, topic):
         sizeref = selected_topic.max()
     elif topic == 'Fraction (Solar)':
         selected_topic = filtered_df['FractionSolar']
+        if fraction_filter:
+            filtered_df = filtered_df[selected_topic > 1]
         size = selected_topic.clip(lower=0)
         hovertemplate = "<b>%{text}</b><br>Fraction (Solar): %{customdata[1]}<extra></extra>"
         customdata = filtered_df[['ID_x', 'FractionSolar']]
@@ -119,6 +121,8 @@ def create_figure(filtered_df, topic):
         sizeref = selected_topic.max()
     elif topic == 'Fraction (Wind)':
         selected_topic = filtered_df['FractionWind']
+        if fraction_filter:
+            filtered_df = filtered_df[selected_topic > 1]
         size = selected_topic.clip(lower=0)
         hovertemplate = "<b>%{text}</b><br>Fraction (Wind): %{customdata[1]}<extra></extra>"
         customdata = filtered_df[['ID_x', 'FractionWind']]
@@ -126,6 +130,8 @@ def create_figure(filtered_df, topic):
         sizeref = selected_topic.max()
     elif topic == 'Fraction (Total)':
         selected_topic = filtered_df['FractionTotal']
+        if fraction_filter:
+            filtered_df = filtered_df[selected_topic > 1]
         size = selected_topic.clip(lower=0)
         hovertemplate = "<b>%{text}</b><br>Fraction (Total): %{customdata[1]}<extra></extra>"
         customdata = filtered_df[['ID_x', 'FractionTotal']]
@@ -209,43 +215,14 @@ app.layout = html.Div(
                         value='Population'  # Default value
                     ),
                 ]),
-                html.Div([
-                    dcc.Markdown("""
-                        **Hover Data**
-
-                        Mouse over values in the graph.
-                    """),
-                    html.Pre(id='hover-data', style={'border': 'thin lightgrey solid', 'overflowX': 'scroll'})
-                ], className='six columns'),
 
                 html.Div([
-                    dcc.Markdown("""
-                        **Click Data**
-
-                        Click on points in the graph.
-                    """),
-                    html.Pre(id='click-data', style={'border': 'thin lightgrey solid', 'overflowX': 'scroll'}),
-                ], className='six columns'),
-
-                html.Div([
-                    dcc.Markdown("""
-                        **Selection Data**
-
-                        Choose the lasso or rectangle tool in the graph's menu
-                        bar and then select points in the graph.
-                    """),
-                    html.Pre(id='selected-data', style={'border': 'thin lightgrey solid', 'overflowX': 'scroll'}),
-                ], className='six columns'),
-
-                html.Div([
-                    dcc.Markdown("""
-                        **Zoom and Relayout Data**
-
-                        Click and drag on the graph to zoom or click on the zoom
-                        buttons in the graph's menu bar.
-                    """),
-                    html.Pre(id='relayout-data', style={'border': 'thin lightgrey solid', 'overflowX': 'scroll'}),
-                ], className='six columns')
+                    dcc.Checklist(
+                        id='fraction-filter',
+                        options=[{'label': 'Self-sufficient sub-regions', 'value': 'filter'}],
+                        value=[]
+                    )
+                ])
             ]
         )
     ]
@@ -255,40 +232,12 @@ app.layout = html.Div(
 # Define interactions
 @app.callback(
     Output('basic-interactions', 'figure'),
-    [Input('year-filter', 'value'), Input('topic-selection', 'value')]
+    [Input('year-filter', 'value'), Input('topic-selection', 'value'), Input('fraction-filter', 'value')]
 )
-def update_figure(selected_year, selected_topic):
-
+def update_figure(selected_year, selected_topic, fraction_filter):
     filtered_df = df[df['Perioden'] == selected_year]
-    return create_figure(filtered_df, selected_topic)
-
-
-@app.callback(
-    Output('hover-data', 'children'),
-    Input('basic-interactions', 'hoverData'))
-def display_hover_data(hoverData):
-    return json.dumps(hoverData, indent=2)
-
-
-@app.callback(
-    Output('click-data', 'children'),
-    Input('basic-interactions', 'clickData'))
-def display_click_data(clickData):
-    return json.dumps(clickData, indent=2)
-
-
-@app.callback(
-    Output('selected-data', 'children'),
-    Input('basic-interactions', 'selectedData'))
-def display_selected_data(selectedData):
-    return json.dumps(selectedData, indent=2)
-
-
-@app.callback(
-    Output('relayout-data', 'children'),
-    Input('basic-interactions', 'relayoutData'))
-def display_relayout_data(relayoutData):
-    return json.dumps(relayoutData, indent=2)
+    fraction_filter = 'filter' in fraction_filter
+    return create_figure(filtered_df, selected_topic, fraction_filter)
 
 
 if __name__ == '__main__':
