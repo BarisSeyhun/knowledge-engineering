@@ -14,7 +14,7 @@ styles = {
     }
 }
 
-df = pd.read_csv('sustainable_energy_nl.csv')
+df = pd.read_csv('merged_fraction_house_20182022new.csv')
 df['BevolkingAanHetEindeVanDePeriode_15'] = df['BevolkingAanHetEindeVanDePeriode_15'].str.replace(',', '.')
 df['BevolkingAanHetEindeVanDePeriode_15'] = pd.to_numeric(df['BevolkingAanHetEindeVanDePeriode_15'], errors='coerce')
 df.fillna(0, inplace=True)
